@@ -152,23 +152,35 @@ export default function DocumentLibrary() {
 
     // Q&A Functions
     const loadChatHistory = async (documentId: number) => {
+        console.log('🔄 Loading chat history for document:', documentId);
         try {
             // First, check if there's an existing session for this document
             const sessionsResponse = await fetch(`/api/documents/${documentId}/chat-sessions`);
+            console.log('📡 Sessions response status:', sessionsResponse.status);
+
             if (sessionsResponse.ok) {
                 const sessions = await sessionsResponse.json();
+                console.log('💬 Found sessions:', sessions);
+
                 if (sessions.length > 0) {
                     // Use the first session
                     const session = sessions[0];
                     setCurrentSessionId(session.id);
+                    console.log('✅ Using existing session:', session.id);
 
                     // Load chat history for this session
                     const historyResponse = await fetch(`/api/chat-sessions/${session.id}/history`);
+                    console.log('📡 History response status:', historyResponse.status);
+
                     if (historyResponse.ok) {
                         const history = await historyResponse.json();
+                        console.log('📝 Loaded chat history:', history);
                         setChatHistory(history);
+                    } else {
+                        console.error('❌ Failed to load history:', await historyResponse.text());
                     }
                 } else {
+                    console.log('🆕 No existing sessions, creating new one');
                     // Create a new session
                     const createSessionResponse = await fetch('/api/chat-sessions', {
                         method: 'POST',
@@ -183,11 +195,16 @@ export default function DocumentLibrary() {
                         const newSession = await createSessionResponse.json();
                         setCurrentSessionId(newSession.id);
                         setChatHistory([]);
+                        console.log('✅ Created new session:', newSession.id);
+                    } else {
+                        console.error('❌ Failed to create session:', await createSessionResponse.text());
                     }
                 }
+            } else {
+                console.error('❌ Failed to fetch sessions:', await sessionsResponse.text());
             }
         } catch (error) {
-            console.error('Error loading chat history:', error);
+            console.error('💥 Error loading chat history:', error);
         }
     };
 
@@ -206,13 +223,15 @@ export default function DocumentLibrary() {
     const askQuestion = async () => {
         if (!currentQuestion.trim() || !selectedDocument || !currentSessionId) return;
 
+        const questionToAsk = currentQuestion.trim(); // Store the question before clearing it
         setIsAsking(true);
+
         try {
             const response = await fetch('/api/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    question: currentQuestion.trim(),
+                    question: questionToAsk,
                     context: selectedDocument.content
                 })
             });
@@ -223,7 +242,7 @@ export default function DocumentLibrary() {
                 // Add both user question and AI response to chat history
                 const userMessage: ChatMessage = {
                     role: 'user',
-                    content: currentQuestion.trim(),
+                    content: questionToAsk,
                     timestamp: new Date().toISOString(),
                 };
 
@@ -243,7 +262,7 @@ export default function DocumentLibrary() {
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             sessionId: currentSessionId,
-                            question: currentQuestion.trim(),
+                            question: questionToAsk,
                             answer: data.answer
                         })
                     });
@@ -634,8 +653,8 @@ export default function DocumentLibrary() {
                                 <div className="space-y-4 max-h-96 overflow-y-auto">
                                     {chatHistory.map((message, index) => (
                                         <div key={`message-${index}`} className={`p-4 rounded-lg ${message.role === 'user'
-                                                ? 'bg-blue-50 border-l-4 border-blue-500'
-                                                : 'bg-gray-50 border-l-4 border-gray-400'
+                                            ? 'bg-blue-50 border-l-4 border-blue-500'
+                                            : 'bg-gray-50 border-l-4 border-gray-400'
                                             }`}>
                                             <div className="font-medium text-sm mb-1">
                                                 {message.role === 'user' ? '👤 You' : '🤖 AI Assistant'}
