@@ -22,6 +22,12 @@ interface ChatSession {
     createdAt: string;
 }
 
+interface ChatMessage {
+    role: 'user' | 'assistant';
+    content: string;
+    timestamp: string;
+}
+
 export default function DocumentLibrary() {
     const { user, isLoaded } = useUser();
     const [documents, setDocuments] = useState<Document[]>([]);
@@ -30,7 +36,14 @@ export default function DocumentLibrary() {
     const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
     const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
     const [expandedContent, setExpandedContent] = useState<{ [key: number]: boolean }>({});
-    const [activeTab, setActiveTab] = useState('grid');
+    const [activeTab, setActiveTab] = useState<'grid' | 'list' | 'details' | 'qa'>('grid');
+
+    // Q&A related state
+    const [currentQuestion, setCurrentQuestion] = useState('');
+    const [isAsking, setIsAsking] = useState(false);
+    const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
+    const [currentSessionId, setCurrentSessionId] = useState<number | null>(null);
+    const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([]);
 
     // Fetch user's documents
     const fetchDocuments = async (search?: string) => {
@@ -137,11 +150,133 @@ export default function DocumentLibrary() {
         }
     };
 
+    // Q&A Functions
+    const loadChatHistory = async (documentId: number) => {
+        try {
+            // First, check if there's an existing session for this document
+            const sessionsResponse = await fetch(`/api/documents/${documentId}/chat-sessions`);
+            if (sessionsResponse.ok) {
+                const sessions = await sessionsResponse.json();
+                if (sessions.length > 0) {
+                    // Use the first session
+                    const session = sessions[0];
+                    setCurrentSessionId(session.id);
+
+                    // Load chat history for this session
+                    const historyResponse = await fetch(`/api/chat-sessions/${session.id}/history`);
+                    if (historyResponse.ok) {
+                        const history = await historyResponse.json();
+                        setChatHistory(history);
+                    }
+                } else {
+                    // Create a new session
+                    const createSessionResponse = await fetch('/api/chat-sessions', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            documentId: documentId,
+                            sessionName: `Q&A Session - ${new Date().toLocaleDateString()}`,
+                        }),
+                    });
+
+                    if (createSessionResponse.ok) {
+                        const newSession = await createSessionResponse.json();
+                        setCurrentSessionId(newSession.id);
+                        setChatHistory([]);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error loading chat history:', error);
+        }
+    };
+
+    const loadSuggestedQuestions = async (documentId: number) => {
+        try {
+            const response = await fetch(`/api/documents/${documentId}/suggested-questions`);
+            if (response.ok) {
+                const questions = await response.json();
+                setSuggestedQuestions(questions);
+            }
+        } catch (error) {
+            console.error('Error loading suggested questions:', error);
+        }
+    };
+
+    const askQuestion = async () => {
+        if (!currentQuestion.trim() || !selectedDocument || !currentSessionId) return;
+
+        setIsAsking(true);
+        try {
+            const response = await fetch('/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    question: currentQuestion.trim(),
+                    context: selectedDocument.content
+                })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+
+                // Add both user question and AI response to chat history
+                const userMessage: ChatMessage = {
+                    role: 'user',
+                    content: currentQuestion.trim(),
+                    timestamp: new Date().toISOString(),
+                };
+
+                const assistantMessage: ChatMessage = {
+                    role: 'assistant',
+                    content: data.answer,
+                    timestamp: new Date().toISOString(),
+                };
+
+                setChatHistory(prev => [...prev, userMessage, assistantMessage]);
+                setCurrentQuestion('');
+
+                // Save to database
+                if (currentSessionId) {
+                    await fetch('/api/chat-history', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            sessionId: currentSessionId,
+                            question: currentQuestion.trim(),
+                            answer: data.answer
+                        })
+                    });
+                }
+            } else {
+                const errorData = await response.json();
+                alert('Error: ' + (errorData.error || 'Failed to get answer'));
+            }
+        } catch (error) {
+            console.error('Error asking question:', error);
+            alert('Error asking question');
+        } finally {
+            setIsAsking(false);
+        }
+    };
+
+    const selectSuggestedQuestion = (question: string) => {
+        setCurrentQuestion(question);
+    };
+
     useEffect(() => {
         if (user?.id && isLoaded) {
             fetchDocuments();
         }
     }, [user?.id, isLoaded]);
+
+    // Load Q&A data when switching to Q&A tab
+    useEffect(() => {
+        if (selectedDocument && activeTab === 'qa') {
+            loadChatHistory(selectedDocument.id);
+            loadSuggestedQuestions(selectedDocument.id);
+        }
+    }, [selectedDocument, activeTab]);
 
     if (!isLoaded) {
         return <div className="flex justify-center items-center h-64">Loading...</div>;
@@ -190,8 +325,8 @@ export default function DocumentLibrary() {
                     <button
                         onClick={() => setActiveTab('grid')}
                         className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'grid'
-                                ? 'border-blue-500 text-blue-600'
-                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            ? 'border-blue-500 text-blue-600'
+                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                             }`}
                     >
                         Grid View
@@ -199,22 +334,33 @@ export default function DocumentLibrary() {
                     <button
                         onClick={() => setActiveTab('list')}
                         className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'list'
-                                ? 'border-blue-500 text-blue-600'
-                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            ? 'border-blue-500 text-blue-600'
+                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                             }`}
                     >
                         List View
                     </button>
                     {selectedDocument && (
-                        <button
-                            onClick={() => setActiveTab('details')}
-                            className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'details'
+                        <>
+                            <button
+                                onClick={() => setActiveTab('details')}
+                                className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'details'
                                     ? 'border-blue-500 text-blue-600'
                                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                                }`}
-                        >
-                            Document Details
-                        </button>
+                                    }`}
+                            >
+                                📄 Details
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('qa')}
+                                className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'qa'
+                                    ? 'border-blue-500 text-blue-600'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                    }`}
+                            >
+                                💬 Q&A
+                            </button>
+                        </>
                     )}
                 </nav>
             </div>
@@ -427,6 +573,82 @@ export default function DocumentLibrary() {
                                 </div>
                             </div>
                         )}
+                    </div>
+                </div>
+            )}
+
+            {/* Q&A Tab Content */}
+            {activeTab === 'qa' && selectedDocument && (
+                <div className="space-y-6">
+                    <div className="bg-white p-6 rounded-lg border">
+                        <h3 className="text-lg font-medium mb-4">💬 Ask Questions About This Document</h3>
+
+                        {/* Question Input */}
+                        <div className="mb-6">
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    placeholder="Ask a question about this document..."
+                                    value={currentQuestion}
+                                    onChange={(e) => setCurrentQuestion(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && !isAsking && askQuestion()}
+                                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    disabled={isAsking}
+                                />
+                                <button
+                                    onClick={askQuestion}
+                                    disabled={!currentQuestion.trim() || isAsking}
+                                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                                >
+                                    {isAsking ? '🤔 Thinking...' : '💬 Ask'}
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Suggested Questions */}
+                        {suggestedQuestions.length > 0 && (
+                            <div className="mb-6">
+                                <h4 className="font-medium mb-2">💡 Suggested Questions</h4>
+                                <div className="flex flex-wrap gap-2">
+                                    {suggestedQuestions.map((question, index) => (
+                                        <button
+                                            key={`suggestion-${index}`}
+                                            onClick={() => selectSuggestedQuestion(question)}
+                                            className="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-full text-gray-700 border"
+                                        >
+                                            {question}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Chat History */}
+                        <div className="space-y-4">
+                            <h4 className="font-medium">📝 Conversation History</h4>
+                            {chatHistory.length === 0 ? (
+                                <div className="text-center py-8 text-gray-500">
+                                    No questions asked yet. Start by asking a question about this document!
+                                </div>
+                            ) : (
+                                <div className="space-y-4 max-h-96 overflow-y-auto">
+                                    {chatHistory.map((message, index) => (
+                                        <div key={`message-${index}`} className={`p-4 rounded-lg ${message.role === 'user'
+                                                ? 'bg-blue-50 border-l-4 border-blue-500'
+                                                : 'bg-gray-50 border-l-4 border-gray-400'
+                                            }`}>
+                                            <div className="font-medium text-sm mb-1">
+                                                {message.role === 'user' ? '👤 You' : '🤖 AI Assistant'}
+                                            </div>
+                                            <div className="text-sm">{message.content}</div>
+                                            <div className="text-xs text-gray-500 mt-1">
+                                                {format(new Date(message.timestamp), 'MMM dd, yyyy HH:mm')}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             )}
