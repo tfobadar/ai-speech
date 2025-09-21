@@ -28,6 +28,25 @@ interface ChatMessage {
     timestamp: string;
 }
 
+interface UserChatHistory {
+    documentId: number;
+    documentTitle: string;
+    documentType: string;
+    fileName?: string;
+    sessions: {
+        sessionId: number;
+        sessionName: string;
+        sessionCreatedAt: string;
+        chatHistory: {
+            id: number;
+            question: string;
+            answer: string;
+            suggestedQuestion: boolean;
+            createdAt: string;
+        }[];
+    }[];
+}
+
 export default function DocumentLibrary() {
     const { user, isLoaded } = useUser();
     const [documents, setDocuments] = useState<Document[]>([]);
@@ -36,7 +55,7 @@ export default function DocumentLibrary() {
     const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
     const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
     const [expandedContent, setExpandedContent] = useState<{ [key: number]: boolean }>({});
-    const [activeTab, setActiveTab] = useState<'grid' | 'list' | 'details' | 'qa'>('grid');
+    const [activeTab, setActiveTab] = useState<'grid' | 'list' | 'details' | 'qa' | 'history'>('grid');
 
     // Q&A related state
     const [currentQuestion, setCurrentQuestion] = useState('');
@@ -44,6 +63,10 @@ export default function DocumentLibrary() {
     const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
     const [currentSessionId, setCurrentSessionId] = useState<number | null>(null);
     const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([]);
+
+    // User's complete Q&A history
+    const [userChatHistory, setUserChatHistory] = useState<UserChatHistory[]>([]);
+    const [historyLoading, setHistoryLoading] = useState(false);
 
     // Fetch user's documents
     const fetchDocuments = async (search?: string) => {
@@ -153,14 +176,23 @@ export default function DocumentLibrary() {
     // Q&A Functions
     const loadChatHistory = async (documentId: number) => {
         console.log('🔄 Loading chat history for document:', documentId);
+
+        // Reset states first
+        setChatHistory([]);
+        setCurrentSessionId(null);
+
         try {
             // First, check if there's an existing session for this document
-            const sessionsResponse = await fetch(`/api/documents/${documentId}/chat-sessions`);
+            const sessionsUrl = `/api/documents/${documentId}/chat-sessions`;
+            console.log('📡 Fetching sessions from:', sessionsUrl);
+
+            const sessionsResponse = await fetch(sessionsUrl);
             console.log('📡 Sessions response status:', sessionsResponse.status);
 
             if (sessionsResponse.ok) {
                 const sessions = await sessionsResponse.json();
                 console.log('💬 Found sessions:', sessions);
+                console.log('💬 Sessions count:', sessions.length);
 
                 if (sessions.length > 0) {
                     // Use the first session
@@ -169,15 +201,26 @@ export default function DocumentLibrary() {
                     console.log('✅ Using existing session:', session.id);
 
                     // Load chat history for this session
-                    const historyResponse = await fetch(`/api/chat-sessions/${session.id}/history`);
+                    const historyUrl = `/api/chat-sessions/${session.id}/history`;
+                    console.log('📡 Fetching history from:', historyUrl);
+
+                    const historyResponse = await fetch(historyUrl);
                     console.log('📡 History response status:', historyResponse.status);
 
                     if (historyResponse.ok) {
                         const history = await historyResponse.json();
                         console.log('📝 Loaded chat history:', history);
-                        setChatHistory(history);
+                        console.log('📝 History length:', history.length);
+
+                        if (Array.isArray(history)) {
+                            setChatHistory(history);
+                            console.log('✅ Chat history set successfully');
+                        } else {
+                            console.error('❌ History is not an array:', typeof history);
+                        }
                     } else {
-                        console.error('❌ Failed to load history:', await historyResponse.text());
+                        const errorText = await historyResponse.text();
+                        console.error('❌ Failed to load history:', historyResponse.status, errorText);
                     }
                 } else {
                     console.log('🆕 No existing sessions, creating new one');
@@ -197,18 +240,18 @@ export default function DocumentLibrary() {
                         setChatHistory([]);
                         console.log('✅ Created new session:', newSession.id);
                     } else {
-                        console.error('❌ Failed to create session:', await createSessionResponse.text());
+                        const errorText = await createSessionResponse.text();
+                        console.error('❌ Failed to create session:', createSessionResponse.status, errorText);
                     }
                 }
             } else {
-                console.error('❌ Failed to fetch sessions:', await sessionsResponse.text());
+                const errorText = await sessionsResponse.text();
+                console.error('❌ Failed to fetch sessions:', sessionsResponse.status, errorText);
             }
         } catch (error) {
             console.error('💥 Error loading chat history:', error);
         }
-    };
-
-    const loadSuggestedQuestions = async (documentId: number) => {
+    }; const loadSuggestedQuestions = async (documentId: number) => {
         try {
             const response = await fetch(`/api/documents/${documentId}/suggested-questions`);
             if (response.ok) {
@@ -283,6 +326,27 @@ export default function DocumentLibrary() {
         setCurrentQuestion(question);
     };
 
+    // Fetch complete user chat history
+    const fetchUserChatHistory = async () => {
+        if (!user?.id || !isLoaded) return;
+
+        setHistoryLoading(true);
+        try {
+            const response = await fetch('/api/user-chat-history');
+            if (response.ok) {
+                const data = await response.json();
+                console.log('📊 Fetched user chat history:', data);
+                setUserChatHistory(data.data || []);
+            } else {
+                console.error('❌ Failed to fetch user chat history:', await response.text());
+            }
+        } catch (error) {
+            console.error('💥 Error fetching user chat history:', error);
+        } finally {
+            setHistoryLoading(false);
+        }
+    };
+
     useEffect(() => {
         if (user?.id && isLoaded) {
             fetchDocuments();
@@ -296,6 +360,13 @@ export default function DocumentLibrary() {
             loadSuggestedQuestions(selectedDocument.id);
         }
     }, [selectedDocument, activeTab]);
+
+    // Load user history when switching to history tab
+    useEffect(() => {
+        if (activeTab === 'history') {
+            fetchUserChatHistory();
+        }
+    }, [activeTab, user?.id, isLoaded]);
 
     if (!isLoaded) {
         return <div className="flex justify-center items-center h-64">Loading...</div>;
@@ -358,6 +429,15 @@ export default function DocumentLibrary() {
                             }`}
                     >
                         List View
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('history')}
+                        className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'history'
+                            ? 'border-blue-500 text-blue-600'
+                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            }`}
+                    >
+                        📚 All Q&A History
                     </button>
                     {selectedDocument && (
                         <>
@@ -668,6 +748,99 @@ export default function DocumentLibrary() {
                                 </div>
                             )}
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* All Q&A History Tab Content */}
+            {activeTab === 'history' && (
+                <div className="space-y-6">
+                    <div className="bg-white p-6 rounded-lg border">
+                        <h3 className="text-lg font-medium mb-4">📚 Complete Q&A History</h3>
+
+                        {historyLoading ? (
+                            <div className="flex justify-center items-center h-32">
+                                <div className="text-gray-500">Loading your Q&A history...</div>
+                            </div>
+                        ) : userChatHistory.length === 0 ? (
+                            <div className="text-center py-8 text-gray-500">
+                                No Q&A history found. Start asking questions about your documents!
+                            </div>
+                        ) : (
+                            <div className="space-y-6">
+                                {userChatHistory.map((docHistory) => (
+                                    <div key={`doc-${docHistory.documentId}`} className="border rounded-lg p-4 bg-gray-50">
+                                        {/* Document Header */}
+                                        <div className="flex items-center justify-between mb-4 pb-3 border-b">
+                                            <div className="flex items-center space-x-3">
+                                                <span className="text-2xl">
+                                                    {docHistory.documentType === 'pdf' ? '📄' :
+                                                        docHistory.documentType === 'doc' || docHistory.documentType === 'docx' ? '📝' : '✍️'}
+                                                </span>
+                                                <div>
+                                                    <h4 className="font-semibold text-lg">{docHistory.documentTitle}</h4>
+                                                    {docHistory.fileName && (
+                                                        <p className="text-sm text-gray-500">{docHistory.fileName}</p>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="text-sm text-gray-500">
+                                                {docHistory.sessions.length} session{docHistory.sessions.length !== 1 ? 's' : ''}
+                                            </div>
+                                        </div>
+
+                                        {/* Sessions */}
+                                        <div className="space-y-4">
+                                            {docHistory.sessions.map((session) => (
+                                                <div key={`session-${session.sessionId}`} className="bg-white rounded-lg p-4 border">
+                                                    {/* Session Header */}
+                                                    <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-100">
+                                                        <h5 className="font-medium text-gray-900">{session.sessionName}</h5>
+                                                        <div className="text-xs text-gray-500">
+                                                            {format(new Date(session.sessionCreatedAt), 'MMM dd, yyyy HH:mm')}
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Q&A History for this session */}
+                                                    <div className="space-y-3">
+                                                        {session.chatHistory.map((qa) => (
+                                                            <div key={`qa-${qa.id}`} className="space-y-2">
+                                                                {/* Question */}
+                                                                <div className="bg-blue-50 p-3 rounded-lg border-l-4 border-blue-500">
+                                                                    <div className="flex items-center justify-between mb-1">
+                                                                        <span className="font-medium text-sm text-blue-700">
+                                                                            👤 Question {qa.suggestedQuestion ? '(Suggested)' : ''}
+                                                                        </span>
+                                                                        <span className="text-xs text-blue-600">
+                                                                            {format(new Date(qa.createdAt), 'MMM dd, HH:mm')}
+                                                                        </span>
+                                                                    </div>
+                                                                    <p className="text-sm text-gray-800">{qa.question}</p>
+                                                                </div>
+
+                                                                {/* Answer */}
+                                                                <div className="bg-gray-50 p-3 rounded-lg border-l-4 border-gray-400 ml-4">
+                                                                    <div className="font-medium text-sm text-gray-700 mb-1">
+                                                                        🤖 AI Assistant
+                                                                    </div>
+                                                                    <p className="text-sm text-gray-800">{qa.answer}</p>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+
+                                                    {session.chatHistory.length === 0 && (
+                                                        <div className="text-center text-gray-500 text-sm py-2">
+                                                            No questions in this session yet.
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
