@@ -5,7 +5,7 @@ import { TTSDataService } from '@/lib/tts-data-service';
 // DELETE /api/chat-sessions/[id] - Delete chat session
 export async function DELETE(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const { userId } = await auth();
@@ -14,7 +14,8 @@ export async function DELETE(
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const sessionId = parseInt(params.id);
+        const { id } = await params;
+        const sessionId = parseInt(id);
         if (isNaN(sessionId)) {
             return NextResponse.json({ error: 'Invalid session ID' }, { status: 400 });
         }
@@ -30,7 +31,7 @@ export async function DELETE(
 // GET /api/chat-sessions/[id]/history - Get chat history for session
 export async function GET(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const { userId } = await auth();
@@ -39,7 +40,8 @@ export async function GET(
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const sessionId = parseInt(params.id);
+        const { id } = await params;
+        const sessionId = parseInt(id);
         if (isNaN(sessionId)) {
             return NextResponse.json({ error: 'Invalid session ID' }, { status: 400 });
         }

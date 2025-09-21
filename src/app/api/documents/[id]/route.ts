@@ -5,7 +5,7 @@ import { TTSDataService } from '@/lib/tts-data-service';
 // GET /api/documents/[id] - Get specific document with sessions
 export async function GET(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const { userId } = await auth();
@@ -14,7 +14,8 @@ export async function GET(
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const documentId = parseInt(params.id);
+        const { id } = await params;
+        const documentId = parseInt(id);
         if (isNaN(documentId)) {
             return NextResponse.json({ error: 'Invalid document ID' }, { status: 400 });
         }
@@ -35,7 +36,7 @@ export async function GET(
 // DELETE /api/documents/[id] - Delete document
 export async function DELETE(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const { userId } = await auth();
@@ -44,7 +45,8 @@ export async function DELETE(
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const documentId = parseInt(params.id);
+        const { id } = await params;
+        const documentId = parseInt(id);
         if (isNaN(documentId)) {
             return NextResponse.json({ error: 'Invalid document ID' }, { status: 400 });
         }
