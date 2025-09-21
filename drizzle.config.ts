@@ -9,6 +9,6 @@ export default defineConfig({
     schema: './src/configs/schema.ts',
     dialect: 'postgresql',
     dbCredentials: {
-        url: 'postgresql://neondb_owner:npg_3B1tvYQplkIy@ep-mute-salad-ab93deyl-pooler.eu-west-2.aws.neon.tech/text-speech-ai?sslmode=require&channel_binding=require',
+        url: process.env.DATABASE_URL!,
     },
 });
