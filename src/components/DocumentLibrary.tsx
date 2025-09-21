@@ -1,0 +1,435 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useUser } from '@clerk/nextjs';
+import { format } from 'date-fns';
+
+interface Document {
+    id: number;
+    title: string;
+    content: string;
+    summary?: string;
+    contentLength: number;
+    documentType: string;
+    fileName?: string;
+    createdAt: string;
+    updatedAt: string;
+}
+
+interface ChatSession {
+    id: number;
+    sessionName: string;
+    createdAt: string;
+}
+
+export default function DocumentLibrary() {
+    const { user, isLoaded } = useUser();
+    const [documents, setDocuments] = useState<Document[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
+    const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
+    const [expandedContent, setExpandedContent] = useState<{ [key: number]: boolean }>({});
+    const [activeTab, setActiveTab] = useState('grid');
+
+    // Fetch user's documents
+    const fetchDocuments = async (search?: string) => {
+        if (!user?.id || !isLoaded) return;
+
+        try {
+            const url = search
+                ? `/api/documents?search=${encodeURIComponent(search)}&limit=50`
+                : '/api/documents?limit=50';
+
+            const response = await fetch(url);
+            const data = await response.json();
+
+            if (response.ok) {
+                setDocuments(data.documents || []);
+            } else {
+                console.error('Error fetching documents:', data.error);
+            }
+        } catch (error) {
+            console.error('Error fetching documents:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Search documents
+    const handleSearch = async () => {
+        setLoading(true);
+        await fetchDocuments(searchTerm);
+    };
+
+    // Delete document
+    const deleteDocument = async (documentId: number) => {
+        if (!confirm('Are you sure you want to delete this document? This will also delete all related chat sessions and data.')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/documents/${documentId}`, {
+                method: 'DELETE',
+            });
+
+            if (response.ok) {
+                setDocuments(prev => prev.filter(doc => doc.id !== documentId));
+                if (selectedDocument?.id === documentId) {
+                    setSelectedDocument(null);
+                    setChatSessions([]);
+                }
+                alert('Document deleted successfully');
+            } else {
+                const data = await response.json();
+                alert('Error deleting document: ' + data.error);
+            }
+        } catch (error) {
+            console.error('Error deleting document:', error);
+            alert('Error deleting document');
+        }
+    };
+
+    // View document details
+    const viewDocument = async (document: Document) => {
+        setSelectedDocument(document);
+        setActiveTab('details');
+
+        try {
+            const response = await fetch(`/api/documents/${document.id}`);
+            const data = await response.json();
+
+            if (response.ok) {
+                setChatSessions(data.sessions || []);
+            }
+        } catch (error) {
+            console.error('Error fetching document details:', error);
+        }
+    };
+
+    // Toggle content expansion
+    const toggleContent = (documentId: number) => {
+        setExpandedContent(prev => ({
+            ...prev,
+            [documentId]: !prev[documentId]
+        }));
+    };
+
+    // Format file size
+    const formatFileSize = (length: number) => {
+        if (length < 1024) return `${length} chars`;
+        if (length < 1024 * 1024) return `${(length / 1024).toFixed(1)}K chars`;
+        return `${(length / (1024 * 1024)).toFixed(1)}M chars`;
+    };
+
+    // Get document type icon
+    const getDocumentIcon = (type: string) => {
+        switch (type) {
+            case 'pdf':
+                return '📄';
+            case 'doc':
+            case 'docx':
+                return '📝';
+            case 'manual_text':
+                return '✍️';
+            default:
+                return '📄';
+        }
+    };
+
+    useEffect(() => {
+        if (user?.id && isLoaded) {
+            fetchDocuments();
+        }
+    }, [user?.id, isLoaded]);
+
+    if (!isLoaded) {
+        return <div className="flex justify-center items-center h-64">Loading...</div>;
+    }
+
+    if (!user) {
+        return <div className="text-center py-8">Please sign in to view your documents.</div>;
+    }
+
+    return (
+        <div className="max-w-6xl mx-auto p-6 space-y-6">
+            <div className="flex justify-between items-center">
+                <h1 className="text-3xl font-bold">Document Library</h1>
+                <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                    {documents.length} documents
+                </span>
+            </div>
+
+            {/* Search Bar */}
+            <div className="flex gap-2">
+                <input
+                    type="text"
+                    placeholder="Search documents by title, content, or filename..."
+                    value={searchTerm}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
+                    onKeyPress={(e: React.KeyboardEvent<HTMLInputElement>) => e.key === 'Enter' && handleSearch()}
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <button
+                    onClick={handleSearch}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                >
+                    🔍 Search
+                </button>
+                <button
+                    onClick={() => { setSearchTerm(''); fetchDocuments(); }}
+                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+                >
+                    Clear
+                </button>
+            </div>
+
+            {/* Tab Navigation */}
+            <div className="border-b border-gray-200">
+                <nav className="-mb-px flex space-x-8">
+                    <button
+                        onClick={() => setActiveTab('grid')}
+                        className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'grid'
+                                ? 'border-blue-500 text-blue-600'
+                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            }`}
+                    >
+                        Grid View
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('list')}
+                        className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'list'
+                                ? 'border-blue-500 text-blue-600'
+                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            }`}
+                    >
+                        List View
+                    </button>
+                    {selectedDocument && (
+                        <button
+                            onClick={() => setActiveTab('details')}
+                            className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'details'
+                                    ? 'border-blue-500 text-blue-600'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                }`}
+                        >
+                            Document Details
+                        </button>
+                    )}
+                </nav>
+            </div>
+
+            {/* Tab Content */}
+            {activeTab === 'grid' && (
+                <div className="space-y-4">
+                    {loading ? (
+                        <div className="flex justify-center items-center h-64">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                        </div>
+                    ) : documents.length === 0 ? (
+                        <div className="text-center py-8 text-gray-500">
+                            {searchTerm ? 'No documents found matching your search.' : 'No documents saved yet.'}
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {documents.map((doc) => (
+                                <div key={doc.id} className="bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-lg transition-shadow p-4">
+                                    <div className="flex items-start justify-between mb-3">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-2xl">{getDocumentIcon(doc.documentType)}</span>
+                                            <h3 className="font-medium text-sm truncate">{doc.title}</h3>
+                                        </div>
+                                        <button
+                                            onClick={() => deleteDocument(doc.id)}
+                                            className="text-red-500 hover:text-red-700 p-1"
+                                            title="Delete document"
+                                        >
+                                            🗑️
+                                        </button>
+                                    </div>
+
+                                    <div className="space-y-2 mb-3">
+                                        <div className="flex items-center gap-2 text-xs text-gray-500">
+                                            📅 {format(new Date(doc.createdAt), 'MMM dd, yyyy')}
+                                        </div>
+                                        <div className="flex items-center gap-2 text-xs text-gray-500">
+                                            📄 {formatFileSize(doc.contentLength)}
+                                        </div>
+                                        {doc.fileName && (
+                                            <div className="text-xs text-gray-500 truncate">
+                                                📎 {doc.fileName}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <div className="text-xs text-gray-700">
+                                            {expandedContent[doc.id]
+                                                ? doc.content
+                                                : doc.content.substring(0, 150) + (doc.content.length > 150 ? '...' : '')
+                                            }
+                                        </div>
+
+                                        <div className="flex gap-1">
+                                            <button
+                                                onClick={() => toggleContent(doc.id)}
+                                                className="text-xs px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded"
+                                            >
+                                                {expandedContent[doc.id] ? '👁️‍🗨️ Collapse' : '👁️ Expand'}
+                                            </button>
+                                            <button
+                                                onClick={() => viewDocument(doc)}
+                                                className="text-xs px-2 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded"
+                                            >
+                                                💬 Details
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {doc.summary && (
+                                        <div className="mt-3 p-2 bg-gray-50 rounded text-xs">
+                                            <strong>Summary:</strong> {doc.summary.substring(0, 100)}...
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {activeTab === 'list' && (
+                <div className="space-y-2">
+                    {loading ? (
+                        <div className="flex justify-center items-center h-64">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                        </div>
+                    ) : documents.length === 0 ? (
+                        <div className="text-center py-8 text-gray-500">
+                            {searchTerm ? 'No documents found matching your search.' : 'No documents saved yet.'}
+                        </div>
+                    ) : (
+                        <div className="space-y-2">
+                            {documents.map((doc) => (
+                                <div key={doc.id} className="bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow p-4">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-3 flex-1">
+                                            <span className="text-xl">{getDocumentIcon(doc.documentType)}</span>
+                                            <div className="flex-1 min-w-0">
+                                                <h3 className="font-medium truncate">{doc.title}</h3>
+                                                <div className="flex items-center gap-4 text-sm text-gray-500">
+                                                    <span>📅 {format(new Date(doc.createdAt), 'MMM dd, yyyy')}</span>
+                                                    <span>📄 {formatFileSize(doc.contentLength)}</span>
+                                                    {doc.fileName && <span className="truncate">📎 {doc.fileName}</span>}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={() => viewDocument(doc)}
+                                                className="px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded text-sm"
+                                            >
+                                                💬 View
+                                            </button>
+                                            <button
+                                                onClick={() => deleteDocument(doc.id)}
+                                                className="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-700 rounded text-sm"
+                                            >
+                                                🗑️ Delete
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {activeTab === 'details' && selectedDocument && (
+                <div className="space-y-6">
+                    <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-6">
+                        <div className="flex items-center gap-2 mb-4">
+                            <span className="text-2xl">{getDocumentIcon(selectedDocument.documentType)}</span>
+                            <h2 className="text-xl font-semibold">{selectedDocument.title}</h2>
+                        </div>
+
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-6">
+                            <div>
+                                <strong>Created:</strong><br />
+                                {format(new Date(selectedDocument.createdAt), 'MMM dd, yyyy HH:mm')}
+                            </div>
+                            <div>
+                                <strong>Size:</strong><br />
+                                {formatFileSize(selectedDocument.contentLength)}
+                            </div>
+                            <div>
+                                <strong>Type:</strong><br />
+                                {selectedDocument.documentType}
+                            </div>
+                            {selectedDocument.fileName && (
+                                <div>
+                                    <strong>File:</strong><br />
+                                    {selectedDocument.fileName}
+                                </div>
+                            )}
+                        </div>
+
+                        {selectedDocument.summary && (
+                            <div className="p-4 bg-blue-50 rounded-lg mb-6">
+                                <h4 className="font-medium mb-2">Summary</h4>
+                                <p className="text-sm">{selectedDocument.summary}</p>
+                            </div>
+                        )}
+
+                        <div className="mb-6">
+                            <h4 className="font-medium mb-2">Content</h4>
+                            <div className="p-4 bg-gray-50 rounded-lg max-h-96 overflow-y-auto">
+                                <pre className="text-sm whitespace-pre-wrap">{selectedDocument.content}</pre>
+                            </div>
+                        </div>
+
+                        {chatSessions.length > 0 && (
+                            <div>
+                                <h4 className="font-medium mb-2">Chat Sessions ({chatSessions.length})</h4>
+                                <div className="space-y-2">
+                                    {chatSessions.map((session) => (
+                                        <div key={session.id} className="flex items-center justify-between p-3 border rounded">
+                                            <div>
+                                                <div className="font-medium">{session.sessionName}</div>
+                                                <div className="text-sm text-gray-500">
+                                                    {format(new Date(session.createdAt), 'MMM dd, yyyy HH:mm')}
+                                                </div>
+                                            </div>
+                                            <button
+                                                onClick={async () => {
+                                                    if (confirm('Delete this chat session?')) {
+                                                        try {
+                                                            const response = await fetch(`/api/chat-sessions/${session.id}`, {
+                                                                method: 'DELETE',
+                                                            });
+                                                            if (response.ok) {
+                                                                setChatSessions(prev => prev.filter(s => s.id !== session.id));
+                                                                alert('Chat session deleted successfully');
+                                                            }
+                                                        } catch (error) {
+                                                            console.error('Error deleting session:', error);
+                                                            alert('Error deleting chat session');
+                                                        }
+                                                    }
+                                                }}
+                                                className="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-700 rounded text-sm"
+                                            >
+                                                🗑️ Delete
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
