@@ -53,17 +53,51 @@ ${text}`;
         });
 
     } catch (error) {
-        console.error('Summarization error:', error);
+        console.error('[SUMMARIZE] Error details:', {
+            message: error instanceof Error ? error.message : 'Unknown error',
+            stack: error instanceof Error ? error.stack : 'No stack trace',
+            type: typeof error,
+            error: error
+        });
 
-        if (error instanceof Error && error.message.includes('API_KEY')) {
-            return NextResponse.json(
-                { error: 'Google AI API key not configured. Please check your environment variables.' },
-                { status: 500 }
-            );
+        // Check if the error is related to Google AI API
+        if (error instanceof Error) {
+            if (error.message.includes('API_KEY') || error.message.includes('API key')) {
+                return NextResponse.json(
+                    {
+                        error: 'Google AI API key not configured. Please check your environment variables.',
+                        details: error.message
+                    },
+                    { status: 500 }
+                );
+            }
+
+            if (error.message.includes('PERMISSION_DENIED') || error.message.includes('403')) {
+                return NextResponse.json(
+                    {
+                        error: 'Google AI API access denied. Check API key permissions.',
+                        details: error.message
+                    },
+                    { status: 500 }
+                );
+            }
+
+            if (error.message.includes('QUOTA_EXCEEDED') || error.message.includes('429')) {
+                return NextResponse.json(
+                    {
+                        error: 'Google AI API quota exceeded. Please try again later.',
+                        details: error.message
+                    },
+                    { status: 500 }
+                );
+            }
         }
 
         return NextResponse.json(
-            { error: 'Failed to generate summary. Please try again.' },
+            {
+                error: 'Failed to generate summary. Please try again.',
+                details: error instanceof Error ? error.message : 'Unknown error occurred'
+            },
             { status: 500 }
         );
     }
