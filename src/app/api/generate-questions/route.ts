@@ -3,7 +3,22 @@ import { genAI } from '@/lib/google-ai';
 
 export async function POST(request: NextRequest) {
     try {
+        console.log('[GENERATE-QUESTIONS] Starting request');
+
+        // Check environment variables first
+        const hasGoogleApiKey = !!process.env.GOOGLE_AI_API_KEY;
+        console.log('[GENERATE-QUESTIONS] Google API Key available:', hasGoogleApiKey);
+
+        if (!hasGoogleApiKey) {
+            console.error('[GENERATE-QUESTIONS] Missing GOOGLE_AI_API_KEY');
+            return NextResponse.json(
+                { error: 'Google AI API key not configured' },
+                { status: 500 }
+            );
+        }
+
         const { text } = await request.json();
+        console.log('[GENERATE-QUESTIONS] Text length:', text?.length || 0);
 
         if (!text || typeof text !== 'string') {
             return NextResponse.json(
@@ -19,17 +34,22 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Initialize the model
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        // Initialize the model with error handling
+        try {
+            const { genAI } = await import('@/lib/google-ai');
+            const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+            console.log('[GENERATE-QUESTIONS] Model initialized successfully');
 
-        // Determine number of questions based on document length
-        let questionCount = 3;
-        if (text.length > 1000) questionCount = 5;
-        if (text.length > 3000) questionCount = 7;
-        if (text.length > 5000) questionCount = 10;
-        if (text.length > 10000) questionCount = 12;
+            // Determine number of questions based on document length
+            let questionCount = 3;
+            if (text.length > 1000) questionCount = 5;
+            if (text.length > 3000) questionCount = 7;
+            if (text.length > 5000) questionCount = 10;
+            if (text.length > 10000) questionCount = 12;
 
-        const prompt = `Based on the following document, generate ${questionCount} thoughtful and relevant questions that someone might ask to better understand the content. The questions should:
+            console.log('[GENERATE-QUESTIONS] Generating', questionCount, 'questions');
+
+            const prompt = `Based on the following document, generate ${questionCount} thoughtful and relevant questions that someone might ask to better understand the content. The questions should:
 
 1. Cover different aspects of the document (main topics, details, implications, etc.)
 2. Be clear and specific
@@ -55,47 +75,59 @@ Make sure each question:
 - Can be answered using the document content
 - Covers different aspects of the document`;
 
-        // Generate questions
-        const result = await model.generateContent(prompt);
-        let response = result.response.text();
+            // Generate questions
+            const result = await model.generateContent(prompt);
+            let response = result.response.text();
+            console.log('[GENERATE-QUESTIONS] Raw AI response length:', response.length);
 
-        // Clean up the response to extract JSON
-        response = response.trim();
+            // Clean up the response to extract JSON
+            response = response.trim();
 
-        // Remove markdown code blocks if present
-        response = response.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+            // Remove markdown code blocks if present
+            response = response.replace(/```json\n?/g, '').replace(/```\n?/g, '');
 
-        // Try to parse the JSON response
-        let questionsData;
-        try {
-            questionsData = JSON.parse(response);
-        } catch (parseError) {
-            // If JSON parsing fails, try to extract questions manually
-            const questionMatches = response.match(/"([^"]*\?[^"]*)"/g);
-            if (questionMatches) {
-                questionsData = {
-                    questions: questionMatches.map(q => q.replace(/"/g, ''))
-                };
-            } else {
-                throw new Error('Failed to parse questions from AI response');
+            // Try to parse the JSON response
+            let questionsData;
+            try {
+                questionsData = JSON.parse(response);
+            } catch (parseError) {
+                console.log('[GENERATE-QUESTIONS] JSON parse failed, trying manual extraction');
+                // If JSON parsing fails, try to extract questions manually
+                const questionMatches = response.match(/"([^"]*\?[^"]*)"/g);
+                if (questionMatches) {
+                    questionsData = {
+                        questions: questionMatches.map(q => q.replace(/"/g, ''))
+                    };
+                } else {
+                    throw new Error('Failed to parse questions from AI response');
+                }
             }
-        }
 
-        if (!questionsData.questions || !Array.isArray(questionsData.questions)) {
-            throw new Error('Invalid questions format received from AI');
-        }
+            if (!questionsData.questions || !Array.isArray(questionsData.questions)) {
+                throw new Error('Invalid questions format received from AI');
+            }
 
-        // Ensure we have at least some questions
-        if (questionsData.questions.length === 0) {
-            throw new Error('No questions were generated');
-        }
+            // Ensure we have at least some questions
+            if (questionsData.questions.length === 0) {
+                throw new Error('No questions were generated');
+            }
 
-        return NextResponse.json({
-            questions: questionsData.questions,
-            documentLength: text.length,
-            questionCount: questionsData.questions.length,
-            success: true
-        });
+            console.log('[GENERATE-QUESTIONS] Successfully generated', questionsData.questions.length, 'questions');
+
+            return NextResponse.json({
+                questions: questionsData.questions,
+                documentLength: text.length,
+                questionCount: questionsData.questions.length,
+                success: true
+            });
+
+        } catch (modelError) {
+            console.error('[GENERATE-QUESTIONS] Model initialization or generation error:', modelError);
+            return NextResponse.json(
+                { error: 'AI model initialization failed. Please check configuration.' },
+                { status: 500 }
+            );
+        }
 
     } catch (error) {
         console.error('Question generation error:', error);
