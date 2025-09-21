@@ -1,7 +1,9 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import './env-override'; // Ensure environment variables are set
 
-const API_KEY = process.env.GOOGLE_AI_API_KEY;
-const PROJECT_NUMBER = process.env.GOOGLE_PROJECT_NUMBER;
+// Temporarily hardcoded for production deployment
+const API_KEY = process.env.GOOGLE_AI_API_KEY || 'AIzaSyBL3NDaNPLIJDTuEB00pk8CbBqAUFPa9nE';
+const PROJECT_NUMBER = process.env.GOOGLE_PROJECT_NUMBER || '545088964055';
 
 console.log('[GOOGLE-AI] Initializing with API key available:', !!API_KEY);
 console.log('[GOOGLE-AI] Project number available:', !!PROJECT_NUMBER);
