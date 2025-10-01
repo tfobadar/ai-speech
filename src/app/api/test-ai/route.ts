@@ -11,14 +11,14 @@ export async function GET(request: NextRequest) {
 
         // Try different model names to find working one
         const modelOptions = [
-            'gemini-1.5-flash-latest',
-            'gemini-1.5-pro-latest',
+            'gemini-1.5-flash',
+            'gemini-1.5-pro',
+            'gemini-pro',
             'gemini-1.0-pro',
-            'gemini-pro-vision',
-            'text-bison-001'
-        ];
-
-        for (const modelOption of modelOptions) {
+            'models/gemini-1.5-flash',
+            'models/gemini-1.5-pro',
+            'models/gemini-pro'
+        ]; for (const modelOption of modelOptions) {
             try {
                 model = genAI.getGenerativeModel({ model: modelOption });
                 modelName = modelOption;
