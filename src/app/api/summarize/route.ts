@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Initialize the model
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
         console.log('[SUMMARIZE] Model initialized successfully');
 
         const prompt = `Please provide a concise and clear summary of the following text. Focus on the main points and key information. Keep the summary between 2-4 sentences and make it suitable for text-to-speech conversion:

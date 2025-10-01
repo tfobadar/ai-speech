@@ -6,7 +6,7 @@ export async function GET(request: NextRequest) {
         console.log('[TEST-AI] Starting Google AI test');
 
         // Initialize the model
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
         console.log('[TEST-AI] Model initialized successfully');
 
         // Test with a simple prompt
