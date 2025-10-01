@@ -22,8 +22,8 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Initialize the model
-        const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+        // Initialize the model - using the most reliable model name
+        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
         console.log('[GENERATE-QUESTIONS] Model initialized successfully');
 
         // Determine number of questions based on document length
