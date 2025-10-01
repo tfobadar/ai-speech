@@ -5,38 +5,10 @@ export async function GET(request: NextRequest) {
     try {
         console.log('[TEST-AI] Starting Google AI test');
 
-        // Initialize the model - try latest available model
-        let model;
-        let modelName = 'unknown';
-
-        // Try different model names to find working one
-        const modelOptions = [
-            'gemini-1.5-flash',
-            'gemini-1.5-pro',
-            'gemini-pro',
-            'gemini-1.0-pro',
-            'models/gemini-1.5-flash',
-            'models/gemini-1.5-pro',
-            'models/gemini-pro'
-        ];
-
-        for (const modelOption of modelOptions) {
-            try {
-                model = genAI.getGenerativeModel({ model: modelOption });
-                modelName = modelOption;
-                console.log('[TEST-AI] Successfully initialized model:', modelName);
-                break;
-            } catch (err) {
-                console.log('[TEST-AI] Failed to initialize model:', modelOption);
-                continue;
-            }
-        }
-
-        if (!model) {
-            throw new Error('No working model found');
-        }
-
-        console.log('[TEST-AI] Using model:', modelName);
+        // Initialize the model with the working gemini-2.0-flash model
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+        const modelName = 'gemini-2.0-flash';
+        console.log('[TEST-AI] Model initialized successfully with:', modelName);
 
         // Test with a simple prompt
         const prompt = 'Say hello and confirm you can respond. Just respond with: "Hello! Google AI is working correctly."';
