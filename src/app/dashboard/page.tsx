@@ -55,18 +55,24 @@ export default function Dashboard() {
         {/* Navigation */}
         <div className="mb-8">
           <nav className="bg-white rounded-lg shadow p-1">
-            <div className="flex space-x-1">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-1">
               <Link
                 href="/dashboard"
-                className="flex-1 py-3 px-4 text-center rounded-md bg-blue-600 text-white font-medium transition-colors"
+                className="py-3 px-4 text-center rounded-md bg-blue-600 text-white font-medium transition-colors"
               >
                 🎬 Video Generation
               </Link>
               <Link
                 href="/text-to-speech"
-                className="flex-1 py-3 px-4 text-center rounded-md text-gray-700 hover:bg-gray-100 font-medium transition-colors"
+                className="py-3 px-4 text-center rounded-md text-gray-700 hover:bg-gray-100 font-medium transition-colors"
               >
                 🔊 Text to Speech
+              </Link>
+              <Link
+                href="/image-to-text"
+                className="py-3 px-4 text-center rounded-md text-gray-700 hover:bg-gray-100 font-medium transition-colors"
+              >
+                📷 Image to Text
               </Link>
             </div>
           </nav>
@@ -77,7 +83,7 @@ export default function Dashboard() {
           <h2 className="text-2xl font-bold text-gray-800 mb-4">Dashboard</h2>
           <p className="text-gray-600 mb-6">Welcome to your AI Studio dashboard! 🚀</p>
 
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid md:grid-cols-3 gap-6">
             <div className="bg-blue-50 p-6 rounded-lg">
               <h3 className="text-lg font-semibold text-blue-800 mb-2">Video Generation</h3>
               <p className="text-blue-600">Create amazing videos with AI technology</p>
@@ -86,6 +92,11 @@ export default function Dashboard() {
             <div className="bg-purple-50 p-6 rounded-lg">
               <h3 className="text-lg font-semibold text-purple-800 mb-2">Text to Speech</h3>
               <p className="text-purple-600">Convert text to natural-sounding speech</p>
+            </div>
+
+            <div className="bg-green-50 p-6 rounded-lg">
+              <h3 className="text-lg font-semibold text-green-800 mb-2">Image to Text (OCR)</h3>
+              <p className="text-green-600">Extract text from images using AI-powered OCR</p>
             </div>
           </div>
         </div>
