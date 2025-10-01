@@ -18,7 +18,9 @@ export async function GET(request: NextRequest) {
             'models/gemini-1.5-flash',
             'models/gemini-1.5-pro',
             'models/gemini-pro'
-        ]; for (const modelOption of modelOptions) {
+        ];
+
+        for (const modelOption of modelOptions) {
             try {
                 model = genAI.getGenerativeModel({ model: modelOption });
                 modelName = modelOption;

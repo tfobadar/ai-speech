@@ -12,11 +12,11 @@ if (typeof window === 'undefined') { // Server-side only
     }
 
     if (!process.env.GOOGLE_AI_API_KEY) {
-        process.env.GOOGLE_AI_API_KEY = 'AIzaSyBL3NDaNPLIJDTuEB00pk8CbBqAUFPa9nE';
+        process.env.GOOGLE_AI_API_KEY = 'AIzaSyBeMry95mVOeqIWexQQbxkTq9fTl3ph5Q0';
     }
 
     if (!process.env.GOOGLE_PROJECT_NUMBER) {
-        process.env.GOOGLE_PROJECT_NUMBER = '545088964055';
+        process.env.GOOGLE_PROJECT_NUMBER = '892045469913';
     }
 
     if (!process.env.DATABASE_URL && !process.env.NEXT_PUBLIC_DATABASE_URL) {
