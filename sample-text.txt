@@ -1,0 +1,1 @@
+This is a test PDF document for text extraction. It contains sample text that should be extracted by the PDF processing API. The system should be able to read this content and convert it to speech.

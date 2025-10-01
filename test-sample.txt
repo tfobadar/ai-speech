@@ -1,0 +1,11 @@
+This is a test document for the PDF upload functionality.
+
+The text-to-speech application should be able to process this content and convert it to speech.
+
+Key features:
+- AI-powered question generation
+- Document summarization
+- Text-to-speech conversion
+- PDF file processing
+
+This sample text will help verify that the upload and processing pipeline is working correctly.

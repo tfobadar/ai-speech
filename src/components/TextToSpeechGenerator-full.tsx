@@ -166,7 +166,11 @@ export default function TextToSpeechGenerator() {
             if (!response.ok) {
                 // Show helpful error message for different scenarios
                 if (result.fallback) {
-                    alert(`PDF Processing Issue:\n\n${result.details}\n\nFor now, please:\n1. Open your PDF file\n2. Copy the text (Ctrl+A, Ctrl+C)\n3. Paste it into the text area below`);
+                    const message = result.guidance ?
+                        `📋 ${result.guidance.title}\n\n${result.guidance.steps.join('\n')}\n\nThis ensures accurate text conversion and works with all PDF types.` :
+                        `📋 PDF Text Extraction:\n\n${result.details}\n\n✨ Quick Steps:\n1. Open your PDF file\n2. Select all text (Ctrl+A or Cmd+A)\n3. Copy the text (Ctrl+C or Cmd+C)\n4. Paste it into the text area below (Ctrl+V or Cmd+V)`;
+
+                    alert(message);
                     throw new Error('PDF processing temporarily unavailable - please copy and paste text manually');
                 } else {
                     throw new Error(result.details || result.error || 'Failed to process PDF on server');
