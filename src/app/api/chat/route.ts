@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Initialize the model
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        const model = genAI.getGenerativeModel({ model: 'models/gemini-2.0-flash-exp' });
 
         const prompt = `You are a helpful assistant that answers questions based on a specific document or text. Please answer the user's question using ONLY the information provided in the document context below. If the answer cannot be found in the document, clearly state that the information is not available in the provided text.
 

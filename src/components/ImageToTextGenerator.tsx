@@ -1,11 +1,11 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
-import { Upload, Copy, FileText, Image, AlertCircle, CheckCircle } from 'lucide-react';
+import { Upload, Copy, FileText, AlertCircle, CheckCircle, File } from 'lucide-react';
 import Tesseract from 'tesseract.js';
 
 interface ImageToTextGeneratorProps {
-    className?: string;
+    readonly className?: string;
 }
 
 export default function ImageToTextGenerator({ className = '' }: ImageToTextGeneratorProps) {
@@ -22,10 +22,13 @@ export default function ImageToTextGenerator({ className = '' }: ImageToTextGene
     const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (file) {
-            // Validate file type
-            const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/bmp'];
+            // Validate file type - accept images and PDFs
+            const allowedTypes = [
+                'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/bmp',
+                'application/pdf'
+            ];
             if (!allowedTypes.includes(file.type)) {
-                setError('Please select a valid image file (JPEG, PNG, GIF, WebP, or BMP)');
+                setError('Please select a valid image file (JPEG, PNG, GIF, WebP, BMP) or PDF file');
                 return;
             }
 
@@ -42,15 +45,19 @@ export default function ImageToTextGenerator({ className = '' }: ImageToTextGene
             setExtractedText('');
             setProgress(0);
 
-            // Create preview URL
-            const url = URL.createObjectURL(file);
-            setPreviewUrl(url);
+            // Create preview URL for images only
+            if (file.type.startsWith('image/')) {
+                const url = URL.createObjectURL(file);
+                setPreviewUrl(url);
+            } else {
+                setPreviewUrl(''); // No preview for PDFs
+            }
         }
     };
 
     const handleExtractText = async () => {
         if (!selectedFile) {
-            setError('Please select an image file first');
+            setError('Please select a file first');
             return;
         }
 
@@ -60,27 +67,22 @@ export default function ImageToTextGenerator({ className = '' }: ImageToTextGene
         setProgress(0);
 
         try {
-            console.log('Starting OCR processing...');
+            console.log('Starting text extraction processing...');
 
-            // Perform OCR using Tesseract.js in the browser
-            const result = await Tesseract.recognize(
-                selectedFile,
-                'eng',
-                {
-                    logger: m => {
-                        if (m.status === 'recognizing text') {
-                            const progressPercent = Math.round(m.progress * 90); // Reserve 10% for server processing
-                            setProgress(progressPercent);
-                            console.log(`OCR Progress: ${progressPercent}%`);
-                        }
-                    }
-                }
-            );
+            let extractedText = '';
 
-            const extractedText = result.data.text.trim();
+            if (selectedFile.type === 'application/pdf') {
+                // Handle PDF files
+                setProgress(10);
+                extractedText = await processPDF(selectedFile);
+            } else {
+                // Handle image files
+                setProgress(10);
+                extractedText = await processImage(selectedFile);
+            }
 
             if (!extractedText || extractedText.length === 0) {
-                throw new Error('No readable text was detected in this image');
+                throw new Error('No readable text was detected in this file');
             }
 
             setProgress(95);
@@ -103,26 +105,128 @@ export default function ImageToTextGenerator({ className = '' }: ImageToTextGene
 
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.details || errorData.error || 'Failed to process image');
+                throw new Error(errorData.details || errorData.error || 'Failed to process file');
             }
 
             const data = await response.json();
 
             setExtractedText(data.text);
-            setSuccess(`Successfully extracted ${data.characters} characters from the image!`);
+            setSuccess(`Successfully extracted ${data.characters} characters from the ${selectedFile.type === 'application/pdf' ? 'PDF' : 'image'}!`);
 
-            console.log('OCR completed successfully:', {
+            console.log('Text extraction completed successfully:', {
                 characters: data.characters,
                 method: data.method
             });
 
         } catch (error) {
-            console.error('OCR Error:', error);
-            const errorMessage = error instanceof Error ? error.message : 'Failed to extract text from image';
+            console.error('Text extraction Error:', error);
+            const errorMessage = error instanceof Error ? error.message : 'Failed to extract text from file';
             setError(errorMessage);
         } finally {
             setIsProcessing(false);
             setProgress(0);
+        }
+    };
+
+    const processImage = async (file: File): Promise<string> => {
+        // Perform OCR using Tesseract.js in the browser
+        const result = await Tesseract.recognize(
+            file,
+            'eng',
+            {
+                logger: m => {
+                    if (m.status === 'recognizing text') {
+                        const progressPercent = Math.round(m.progress * 80) + 10; // 10-90%
+                        setProgress(progressPercent);
+                        console.log(`OCR Progress: ${progressPercent}%`);
+                    }
+                }
+            }
+        );
+
+        return result.data.text.trim();
+    };
+
+    const processPDF = async (file: File): Promise<string> => {
+        try {
+            // Import PDF.js worker
+            const pdfjsLib = await import('pdfjs-dist');
+
+            // Set the worker source to use the local worker file
+            if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
+                pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
+            }
+
+            console.log('PDF.js worker configured, loading document...');
+
+            const arrayBuffer = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+            let allText = '';
+            const numPages = pdf.numPages;
+            console.log(`Processing PDF with ${numPages} pages...`);
+
+            for (let i = 1; i <= numPages; i++) {
+                setProgress(10 + ((i - 1) / numPages) * 60); // 10-70%
+
+                const page = await pdf.getPage(i);
+
+                // Try text extraction first
+                const textContent = await page.getTextContent();
+                const pageText = textContent.items
+                    .map((item: any) => item.str)
+                    .join(' ')
+                    .trim();
+
+                if (pageText.length > 0) {
+                    // If text extraction works, use it
+                    allText += pageText + '\n\n';
+                    console.log(`Page ${i}: Extracted ${pageText.length} characters via text parsing`);
+                } else {
+                    // If no text found, use OCR on the page
+                    console.log(`Page ${i}: No text found, using OCR...`);
+
+                    const viewport = page.getViewport({ scale: 2.0 });
+                    const canvas = document.createElement('canvas');
+                    const context = canvas.getContext('2d');
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
+
+                    await page.render({
+                        canvasContext: context!,
+                        viewport: viewport,
+                        canvas: canvas
+                    }).promise;
+
+                    // Convert canvas to image and run OCR
+                    const imageDataURL = canvas.toDataURL();
+                    const ocrResult = await Tesseract.recognize(
+                        imageDataURL,
+                        'eng',
+                        {
+                            logger: m => {
+                                if (m.status === 'recognizing text') {
+                                    const baseProgress = 10 + ((i - 1) / numPages) * 60;
+                                    const pageProgress = (m.progress * 60) / numPages;
+                                    setProgress(Math.round(baseProgress + pageProgress));
+                                }
+                            }
+                        }
+                    );
+
+                    const ocrText = ocrResult.data.text.trim();
+                    if (ocrText.length > 0) {
+                        allText += ocrText + '\n\n';
+                        console.log(`Page ${i}: Extracted ${ocrText.length} characters via OCR`);
+                    }
+                }
+            }
+
+            setProgress(80);
+            return allText.trim();
+        } catch (error) {
+            console.error('PDF processing error:', error);
+            throw new Error(`Failed to process PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     };
 
@@ -161,11 +265,11 @@ export default function ImageToTextGenerator({ className = '' }: ImageToTextGene
         <div className={`max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-sm border ${className}`}>
             <div className="mb-6">
                 <h2 className="text-2xl font-bold text-gray-900 mb-2 flex items-center gap-2">
-                    <Image className="w-6 h-6" />
-                    Image to Text Generator
+                    <FileText className="w-6 h-6" />
+                    Document to Text Generator
                 </h2>
                 <p className="text-gray-600">
-                    Upload an image and extract text using OCR (Optical Character Recognition)
+                    Upload an image or PDF and extract text using OCR (Optical Character Recognition)
                 </p>
             </div>
 
@@ -176,7 +280,7 @@ export default function ImageToTextGenerator({ className = '' }: ImageToTextGene
                         type="file"
                         ref={fileInputRef}
                         onChange={handleFileSelect}
-                        accept="image/*"
+                        accept="image/*,.pdf"
                         className="hidden"
                         id="image-upload"
                     />
@@ -187,10 +291,10 @@ export default function ImageToTextGenerator({ className = '' }: ImageToTextGene
                         <Upload className="w-12 h-12 text-gray-400" />
                         <div>
                             <p className="text-lg font-medium text-gray-700">
-                                Click to upload an image
+                                Click to upload a file
                             </p>
                             <p className="text-sm text-gray-500">
-                                Supports JPEG, PNG, GIF, WebP, and BMP (max 10MB)
+                                Supports images (JPEG, PNG, GIF, WebP, BMP) and PDF files (max 10MB)
                             </p>
                         </div>
                     </label>
@@ -200,11 +304,15 @@ export default function ImageToTextGenerator({ className = '' }: ImageToTextGene
                     <div className="mt-4 p-4 bg-gray-50 rounded-lg">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
-                                <FileText className="w-5 h-5 text-blue-500" />
+                                {selectedFile.type === 'application/pdf' ? (
+                                    <File className="w-5 h-5 text-red-500" />
+                                ) : (
+                                    <FileText className="w-5 h-5 text-blue-500" />
+                                )}
                                 <div>
                                     <p className="font-medium text-gray-700">{selectedFile.name}</p>
                                     <p className="text-sm text-gray-500">
-                                        {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                                        {(selectedFile.size / 1024 / 1024).toFixed(2)} MB • {selectedFile.type === 'application/pdf' ? 'PDF' : 'Image'}
                                     </p>
                                 </div>
                             </div>
@@ -239,12 +347,12 @@ export default function ImageToTextGenerator({ className = '' }: ImageToTextGene
                     {isProcessing ? (
                         <>
                             <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                            Processing Image with OCR...
+                            {selectedFile?.type === 'application/pdf' ? 'Processing PDF with OCR...' : 'Processing Image with OCR...'}
                         </>
                     ) : (
                         <>
                             <FileText className="w-5 h-5" />
-                            Extract Text from Image
+                            Extract Text from File
                         </>
                     )}
                 </button>

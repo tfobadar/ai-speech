@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Initialize the model - using the working gemini-2.0-flash model
-        const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+        const model = genAI.getGenerativeModel({ model: 'models/gemini-2.0-flash-exp' });
         console.log('[GENERATE-QUESTIONS] Model initialized successfully');
 
         // Determine number of questions based on document length

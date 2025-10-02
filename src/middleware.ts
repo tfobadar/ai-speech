@@ -1,23 +1,45 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 
-// Temporary middleware bypass for Clerk issues
-export function middleware(request: NextRequest) {
-    console.log('[MIDDLEWARE] Route accessed:', request.url);
+const isProtectedRoute = createRouteMatcher([
+    '/dashboard(.*)',
+    '/text-to-speech(.*)',
+    '/api/chat(.*)',
+    '/api/documents(.*)',
+    '/api/generate(.*)',
+    '/api/process(.*)',
+    '/api/summarize(.*)',
+]);
 
-    // Just pass through all requests without Clerk authentication
-    return NextResponse.next();
-}
+const isPublicRoute = createRouteMatcher([
+    '/',
+    '/sign-in(.*)',
+    '/sign-up(.*)',
+    '/api/webhooks(.*)',
+]);
 
-// Define the matcher for routes
+export default clerkMiddleware(async (auth, req) => {
+    console.log('[MIDDLEWARE] Route accessed:', req.url);
+
+    // Allow public routes without authentication
+    if (isPublicRoute(req)) {
+        console.log('[MIDDLEWARE] Public route, allowing access');
+        return;
+    }
+
+    // For protected routes, check authentication but don't force redirect
+    // Let the client-side handle the authentication state
+    if (isProtectedRoute(req)) {
+        console.log('[MIDDLEWARE] Protected route, checking auth...');
+        try {
+            // Just check auth state without forcing redirect
+            const authResult = await auth();
+            console.log('[MIDDLEWARE] Auth result:', authResult?.userId ? 'authenticated' : 'not authenticated');
+        } catch (error) {
+            console.log('[MIDDLEWARE] Auth check error:', error);
+        }
+    }
+});
+
 export const config = {
-    matcher: [
-        /*
-         * Match all request paths except for the ones starting with:
-         * - _next/static (static files)
-         * - _next/image (image optimization files)
-         * - favicon.ico (favicon file)
-         */
-        "/((?!_next/static|_next/image|favicon.ico).*)",
-    ]
+    matcher: ['/((?!.*\\..*|_next).*)', '/', '/(api|trpc)(.*)'],
 };

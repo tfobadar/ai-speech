@@ -72,7 +72,7 @@ export default function Dashboard() {
                 href="/image-to-text"
                 className="py-3 px-4 text-center rounded-md text-gray-700 hover:bg-gray-100 font-medium transition-colors"
               >
-                📷 Image to Text
+                � Document to Text
               </Link>
             </div>
           </nav>
@@ -95,8 +95,8 @@ export default function Dashboard() {
             </div>
 
             <div className="bg-green-50 p-6 rounded-lg">
-              <h3 className="text-lg font-semibold text-green-800 mb-2">Image to Text (OCR)</h3>
-              <p className="text-green-600">Extract text from images using AI-powered OCR</p>
+              <h3 className="text-lg font-semibold text-green-800 mb-2">Document to Text (OCR)</h3>
+              <p className="text-green-600">Extract text from images and PDF files using AI-powered OCR</p>
             </div>
           </div>
         </div>

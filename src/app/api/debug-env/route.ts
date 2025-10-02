@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
             const { GoogleGenerativeAI } = await import('@google/generative-ai');
             const apiKey = process.env.GOOGLE_AI_API_KEY || 'HARDCODED_KEY_SET';
             const genAI = new GoogleGenerativeAI(apiKey);
-            genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+            genAI.getGenerativeModel({ model: 'models/gemini-2.0-flash-exp' });
             googleAIStatus = 'CLIENT_INITIALIZED';
         } catch (error) {
             googleAIStatus = `ERROR: ${error instanceof Error ? error.message : 'Unknown error'}`;

@@ -44,8 +44,8 @@ export default function ImageToTextPage() {
                 {/* Header with navigation */}
                 <div className="flex justify-between items-center mb-8">
                     <div className="text-left">
-                        <h1 className="text-4xl font-bold text-gray-800 mb-2">Image to Text</h1>
-                        <p className="text-gray-600">Extract text from images using OCR technology</p>
+                        <h1 className="text-4xl font-bold text-gray-800 mb-2">Document to Text</h1>
+                        <p className="text-gray-600">Extract text from images and PDF files using OCR technology</p>
                     </div>
                     <div className="flex items-center space-x-4">
                         <Link

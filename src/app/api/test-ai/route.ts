@@ -6,7 +6,7 @@ export async function GET(request: NextRequest) {
         console.log('[TEST-AI] Starting Google AI test');
 
         // Initialize the model with the working gemini-2.0-flash model
-        const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+        const model = genAI.getGenerativeModel({ model: 'models/gemini-2.0-flash-exp' });
         const modelName = 'gemini-2.0-flash';
         console.log('[TEST-AI] Model initialized successfully with:', modelName);
 

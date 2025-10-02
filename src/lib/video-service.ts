@@ -13,7 +13,7 @@ class VideoGenerationService {
 
     constructor() {
         // Using Gemini model for video generation
-        this.model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+        this.model = genAI.getGenerativeModel({ model: "models/gemini-2.0-flash-exp" });
     }
 
     async generateVideo(request: VideoGenerationRequest): Promise<VideoGenerationResponse> {
