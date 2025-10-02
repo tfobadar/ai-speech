@@ -4,6 +4,7 @@ import { SignInButton, UserButton, useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import Link from "next/link";
+import StructuredData from "@/components/StructuredData";
 
 export default function Home() {
   const { isSignedIn, isLoaded } = useUser();
@@ -136,6 +137,7 @@ export default function Home() {
           </div>
         </div>
       </main>
+      <StructuredData />
     </div>
   );
 }

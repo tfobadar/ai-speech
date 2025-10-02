@@ -1,0 +1,21 @@
+User-agent: *
+Allow: /
+
+# Sitemap location
+Sitemap: https://ai-speech.vercel.app/sitemap.xml
+
+# Disallow admin/private areas
+Disallow: /api/
+Disallow: /sign-in/
+Disallow: /sign-up/
+Disallow: /dashboard/
+Disallow: /_next/
+Disallow: /admin/
+
+# Allow public pages
+Allow: /
+Allow: /text-to-speech
+Allow: /image-to-text
+
+# Crawl delay (optional)
+Crawl-delay: 1
