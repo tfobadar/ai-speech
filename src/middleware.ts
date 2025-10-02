@@ -3,11 +3,13 @@ import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 const isProtectedRoute = createRouteMatcher([
     '/dashboard(.*)',
     '/text-to-speech(.*)',
+    '/image-to-text(.*)',
     '/api/chat(.*)',
     '/api/documents(.*)',
-    '/api/generate(.*)',
+    '/api/generate-questions(.*)',
     '/api/process(.*)',
     '/api/summarize(.*)',
+    '/api/text-to-speech(.*)',
 ]);
 
 const isPublicRoute = createRouteMatcher([

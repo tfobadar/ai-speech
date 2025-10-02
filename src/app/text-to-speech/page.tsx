@@ -65,26 +65,6 @@ export default function TextToSpeechPage() {
                     </div>
                 </div>
 
-                {/* Navigation */}
-                {/* <div className="mb-8">
-                    <nav className="bg-white rounded-lg shadow-md p-1">
-                        <div className="flex space-x-1">
-                            <Link
-                                href="/dashboard"
-                                className="flex-1 py-3 px-4 text-center rounded-md text-gray-700 hover:bg-gray-100 font-medium transition-colors"
-                            >
-                                🎬 Video Generation
-                            </Link>
-                            <Link
-                                href="/text-to-speech"
-                                className="flex-1 py-3 px-4 text-center rounded-md bg-purple-600 text-white font-medium transition-colors"
-                            >
-                                🔊 Text to Speech
-                            </Link>
-                        </div>
-                    </nav>
-                </div> */}
-
                 <TextToSpeechGenerator />
             </div>
         </div>

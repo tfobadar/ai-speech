@@ -34,7 +34,7 @@ export default function Home() {
         <div className="flex justify-between items-center">
           <div className="flex items-center space-x-2">
             <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-lg">�</span>
+              <span className="text-white font-bold text-lg">🔊</span>
             </div>
             <h1 className="text-xl font-bold text-gray-800">AI Text-to-Speech</h1>
           </div>
@@ -73,13 +73,13 @@ export default function Home() {
       <main className="container mx-auto px-4 py-16">
         <div className="text-center max-w-4xl mx-auto">
           <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6">
-            Create Amazing Videos with
+            Transform Text into Speech with
             <span className="text-blue-600 block mt-2">AI Technology</span>
           </h1>
 
           <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-            Transform your ideas into stunning videos using Google AI Studio.
-            Choose from mobile or desktop formats, customize duration, and add audio - all with simple text descriptions.
+            Convert your text to natural-sounding speech and extract text from documents using Google AI Studio.
+            Process PDFs, images, and create high-quality audio with simple, intuitive tools.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
@@ -88,8 +88,8 @@ export default function Home() {
                 href="/dashboard"
                 className="bg-blue-600 text-white px-8 py-4 rounded-lg text-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center"
               >
-                <span className="mr-2">🎬</span>
-                Start Creating Videos
+                <span className="mr-2">🔊</span>
+                Start Using AI Tools
               </Link>
             ) : (
               <>
@@ -112,26 +112,26 @@ export default function Home() {
           <div className="grid md:grid-cols-3 gap-8 mt-16">
             <div className="bg-white p-6 rounded-xl shadow-md">
               <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4 mx-auto">
-                <span className="text-2xl">📱</span>
+                <span className="text-2xl">�</span>
               </div>
-              <h3 className="text-xl font-semibold mb-2">Multi-Format Support</h3>
-              <p className="text-gray-600">Create videos optimized for mobile (9:16) or desktop (16:9) viewing experiences.</p>
+              <h3 className="text-xl font-semibold mb-2">Text to Speech</h3>
+              <p className="text-gray-600">Convert any text into natural-sounding speech with advanced AI voice synthesis.</p>
             </div>
 
             <div className="bg-white p-6 rounded-xl shadow-md">
               <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4 mx-auto">
-                <span className="text-2xl">⏱️</span>
+                <span className="text-2xl">📄</span>
               </div>
-              <h3 className="text-xl font-semibold mb-2">Custom Duration</h3>
-              <p className="text-gray-600">Set video length from 5 seconds to 5 minutes with easy preset options.</p>
+              <h3 className="text-xl font-semibold mb-2">Document OCR</h3>
+              <p className="text-gray-600">Extract text from PDFs and images using powerful optical character recognition.</p>
             </div>
 
             <div className="bg-white p-6 rounded-xl shadow-md">
               <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4 mx-auto">
-                <span className="text-2xl">🎵</span>
+                <span className="text-2xl">💬</span>
               </div>
-              <h3 className="text-xl font-semibold mb-2">Audio Options</h3>
-              <p className="text-gray-600">Choose to include background music and sound effects or create silent videos.</p>
+              <h3 className="text-xl font-semibold mb-2">AI Chat</h3>
+              <p className="text-gray-600">Ask questions about your documents and get intelligent responses from AI.</p>
             </div>
           </div>
         </div>
